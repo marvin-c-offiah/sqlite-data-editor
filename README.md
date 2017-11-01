@@ -16,7 +16,7 @@ Also, database changes happen only by editing the contents in the table editor. 
 
 The limitations are targeted at making editing SQLite data very intuitive for laymen end users without any knowledge or interest in all the possibilities of the underlying SQLite and database technology. This allows the GUI to be very light-weight and transparent, making it appear like just editing a simple Excel-file:
 
-No complex additional view elements (menues, trees, console inputs etc.) for schema, indices, views, triggers, SQL input etc., as, e.g., in [DB Browser for SQLite](http://sqlitebrowser.org/). Instead, just straightforward the table data display and an *Open file...* and *Save / Save as...* menu. That's it.
+No complex additional view elements (menues, trees, console inputs etc.) for schema, indices, views, triggers, SQL input etc., as, e.g., in [DB Browser for SQLite](http://sqlitebrowser.org/). Instead, just straightforward the table data display and an *Open file...* and *Save / Save as...* menue. That's it.
 
 Works cross-platform on a Java VM.
 
