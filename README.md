@@ -16,9 +16,11 @@ The limitations are targeted at making editing SQLite data very intuitive for la
 
 No complex additional views (menues, trees, console inputs etc.) for schema, indices, views, triggers, SQL input etc, as in [DB Browser for SQLite](http://sqlitebrowser.org/). Instead, just some JTables in a Tab Pane, *Open file...* and *Save / Save as...*.
 
+Works cross-platform on a Java VM.
+
 ### Application developers
 
-Allows application developers to provide a universal off-line configuration file editor to the end users of their application (e.g., for editing launch configs offline) by including this tool:
+Allows application developers to provide a universal off-line configuration file editor to the end users of their cross-platform Java application (e.g., for editing launch configs offline) by including this tool:
 
 Instead of laboriously implementing the parsing of multiple or syntactically complicated plain text config files, developers can think about implementing the reading of config data from an API-friendly SQLite database file.
 
