@@ -6,7 +6,9 @@ SQLite Data Editor is a simple GUI for editing **only the table data** in a give
 
 Immediately upon selecting and opening an SQLite database file, the tool creates and populates a tabbed view of all the tables found in the database, allowing the user to edit all table entries. Automatically displays the first table immediately.
 
-Since SQLite Data Editor is meant only for editing table **data**: Makes changes to the database on DML-basis only.  Makes no DDL-based (schema or metadata etc.) changes to the database. Database changes happen only by editing the contents in the table editor. No direct SQL-access in the GUI. Saving the table editor edits results in a simple clean and rewrite of all table data in the database, replacing it with the current data in the table editor.
+Since SQLite Data Editor is meant only for editing table **data**: Makes changes to the database on DML-basis only.  Makes no DDL-based (schema or metadata etc.) changes to the database.
+
+Also, database changes happen only by editing the contents in the table editor. No direct SQL-access in the GUI. Saving the table editor edits results in a simple clean and rewrite of all table data in the database, replacing it with the current data in the table editor.
 
 ## Recommended for
 
