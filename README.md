@@ -12,7 +12,9 @@ Makes changes to the database on DML-basis only.  Makes no DDL-based (schema or 
 
 ### End users
 
-The limitations make editing SQLite data very intuitive for laymen end users without any knowledge or interest in all the possibilities of the underlying SQLite and database technology. This allows the GUI to be very light-weight and transparent, making it appear like editing a simple Excel-file: No complex views or menues for schema, indices, views, triggers, SQL input etc. Just some JTables in a Tab Pane, Open File, Save.
+The limitations are targeted at making editing SQLite data very intuitive for laymen end users without any knowledge or interest in all the possibilities of the underlying SQLite and database technology. This allows the GUI to be very light-weight and transparent, making it appear like just editing a simple Excel-file:
+
+No complex additional views (menues, trees, console inputs etc.) for schema, indices, views, triggers, SQL input etc, as in [DB Browser for SQLite](http://sqlitebrowser.org/). Instead, just some JTables in a Tab Pane, *Open file...* and *Save / Save as...*.
 
 ### Application developers
 
