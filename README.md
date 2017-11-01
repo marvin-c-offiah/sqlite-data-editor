@@ -10,6 +10,16 @@ Makes changes to the database on DML-basis only.  Makes no DDL-based (schema or 
 
 ## Recommended for
 
-The limitations make editing SQLite data very intuitive for laymen without any knowledge or interest in all the possibilities of the underlying SQLite and database technology. This allows the GUI to be very light-weight and transparent, making it appear like editing a simple Excel-file: No complex views or menues for schema, indices, views, triggers, SQL input etc. Just some JTables in a Tab Pane, Open File, Save.
+### End users
 
-Recommended for providing a universal off-line configuration file editor for applications (e.g., for launch configs): Instead of laboriously implementing the parsing of multiple or syntactically complicated plain text config files, developers can think about implementing the reading of config data from an API-friendly SQLite database file. The arising downside of the end user no longer being able to edit the config with a simple text editor is then solved by this tool, since it presents a simple table editor to the user instead. It removes the additional need to implement a user-friendly application-specific GUI-editor for making configurations.
+The limitations make editing SQLite data very intuitive for laymen end users without any knowledge or interest in all the possibilities of the underlying SQLite and database technology. This allows the GUI to be very light-weight and transparent, making it appear like editing a simple Excel-file: No complex views or menues for schema, indices, views, triggers, SQL input etc. Just some JTables in a Tab Pane, Open File, Save.
+
+### Application developers
+
+Allows application developers to provide a universal off-line configuration file editor to the end users of their application (e.g., for launch configs) by including this tool:
+
+Instead of laboriously implementing the parsing of multiple or syntactically complicated plain text config files, developers can think about implementing the reading of config data from an API-friendly SQLite database file.
+
+The arising downside of the end user no longer being able to edit the config with a simple text editor is then solved by this tool, since it presents a simple table editor to the user instead. It removes the additional need to implement a user-friendly application-specific GUI-editor for making configurations.
+
+
