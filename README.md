@@ -16,7 +16,7 @@ The limitations make editing SQLite data very intuitive for laymen end users wit
 
 ### Application developers
 
-Allows application developers to provide a universal off-line configuration file editor to the end users of their application (e.g., for launch configs) by including this tool:
+Allows application developers to provide a universal off-line configuration file editor to the end users of their application (e.g., for editing launch configs offline) by including this tool:
 
 Instead of laboriously implementing the parsing of multiple or syntactically complicated plain text config files, developers can think about implementing the reading of config data from an API-friendly SQLite database file.
 
