@@ -1,0 +1,58 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.github.marvin-c-offiah</groupId>
+		<artifactId>maven-management</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+		<relativePath>../../../Utilities/Maven Management/maven-management/pom.xml</relativePath>
+	</parent>
+	<artifactId>sqlite-data-editor</artifactId>
+	<packaging>jar</packaging>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>SQLite Data Editor</name>
+	<description>A simple GUI for editing only the table data in a given SQLite database file via a simple light-weight table editor. Makes changes to the database on DML-level only.  Makes no DDL-based (schema or metadata etc.) changes to the database. Database changes happen only by editing the contents in the table editor. No direct SQL-access in the GUI. Saving the table editor edits results in a simple clean and rewrite of all table data in the database with the data of the table editor.
+
+The limitations make editing SQLite data very intuitive for laymen without any knowledge or interest in all the possibilities of the underlying SQLite technology. This allows the GUI to be very light-weight and transparent, making it appear like editing a simple Excel-file.
+
+Recommended for practical use as a universal off-line configuration editor for applications (launch configs etc.): Instead of laboriously implementing a parsing of multiple or syntactically complicated text config files, the application can consider reading its config from an access-friendly SQLite database file. The downside of no longer being able to edit the config with a simple text editor is then solved by this tool, since it presents a simple table editor to the user instead. No need to implement a specialized GUI-editor for the config.</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.github.marvin-c-offiah</groupId>
+			<artifactId>data-utils</artifactId>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+						<archive>
+							<manifest>
+								<mainClass>com.github.marvin_c_offiah.sqlite_data_editor.SQLiteDataEditor</mainClass>
+							</manifest>
+						</archive>
+						<descriptorRefs>
+							<descriptorRef>jar-with-dependencies</descriptorRef>
+						</descriptorRefs>
+				</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
