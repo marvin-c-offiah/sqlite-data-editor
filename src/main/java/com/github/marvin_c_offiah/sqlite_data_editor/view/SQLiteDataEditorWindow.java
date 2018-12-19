@@ -37,6 +37,8 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
+import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionEvent;
@@ -111,12 +113,14 @@ public class SQLiteDataEditorWindow implements Observer {
 	public SelectAllCellEditor() {
 	    super(new JTextField());
 	    JTextField textField = (JTextField) getComponent();
+	    textField.setBorder(new EmptyBorder(0, 0, 0, 0));
 	    textField.addFocusListener(new FocusAdapter() {
 
 		public void focusGained(final FocusEvent e) {
 		    textField.selectAll();
 		}
 	    });
+	    this.setClickCountToStart(0);
 	}
     }
 
@@ -150,6 +154,7 @@ public class SQLiteDataEditorWindow implements Observer {
 	    throws Exception {
 	if (controller == null)
 	    throw new Exception("The controller must be provided to the data editor.");
+	UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 	initialize();
 	this.controller = controller;
 	if (model != null)
@@ -327,6 +332,8 @@ public class SQLiteDataEditorWindow implements Observer {
 		    for (int k = 0; k < rowCount; k++)
 			data[k][j] = table.get(colNames[j])[k];
 		JTable tbl = new JTable(new DefaultTableModel(data, colNames));
+		tbl.setRowHeight(25);
+		tbl.setIntercellSpacing(new Dimension(5, 5));
 
 		tbl.getColumnModel()
 			.removeColumn(tbl.getColumnModel().getColumn(tbl.getColumnModel().getColumnIndex("_rowid_")));
