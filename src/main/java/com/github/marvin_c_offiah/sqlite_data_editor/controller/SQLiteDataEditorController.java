@@ -30,6 +30,10 @@ public class SQLiteDataEditorController {
 	return model.getPrimaryKey(tableName);
     }
 
+    public TreeMap<String, Object> getOriginalRow(String name, TreeMap<String, Object> primaryKey) throws Exception {
+	return model.selectColumns(name, primaryKey, null, false).get(0);
+    }
+
     public void insertIntoTable(String name, TreeMap<String, Object> values) throws Exception {
 	model.insertIntoTable(name, values);
 	view.updateMenuBar(true);

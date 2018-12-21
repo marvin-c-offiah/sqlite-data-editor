@@ -21,6 +21,7 @@ import java.util.Observable;
 import java.util.Observer;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.Vector;
 
 import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
@@ -50,6 +51,28 @@ import com.github.marvin_c_offiah.data_utils.SQLiteInMemoryDatabase;
 import com.github.marvin_c_offiah.sqlite_data_editor.controller.SQLiteDataEditorController;
 
 public class SQLiteDataEditorWindow implements Observer {
+
+    public static final int DEFAULT_STATE = 0;
+
+    public static final int UPDATING_STATE = 1;
+
+    public static final int INSERTING_STATE = 2;
+
+    public static final int ERROR_UPDATING_STATE = 3;
+
+    public static final int ERROR_INSERTING_STATE = 4;
+
+    public static final int TABLE_NAVIGATION_KEY_CLASS = 0;
+
+    public static final int TABLE_SAVE_EDITS_KEY_CLASS = 1;
+
+    public static final int TABLE_CANCEL_EDITS_KEY_CLASS = 2;
+
+    public static final int TABLE_DO_NOTHING_KEY_CLASS = 3;
+
+    public static final int INSERT_TABLE_ROW_COMMAND = 0;
+
+    public static final int DELETE_TABLE_ROW_COMMAND = 1;
 
     public static final Color DEFAULT_TABLE_ROW_SELECTION_COLOR = new Color(0.0f, 0.0f, 1.0f, 0.5f);
 
@@ -101,6 +124,81 @@ public class SQLiteDataEditorWindow implements Observer {
 
 	    });
 	    setAcceptAllFileFilterUsed(false);
+	}
+
+    }
+
+    protected class SQLiteTable extends JTable {
+
+	protected int currentState = DEFAULT_STATE;
+
+	protected int[] currentSelection = { -1, -1 };
+
+	public SQLiteTable(Object[][] data, String[] colNames) {
+	    super(new DefaultTableModel(data, colNames));
+	}
+
+	@Override
+	public void changeSelection(final int row, final int column, boolean toggle, boolean extend) {
+	    super.changeSelection(row, column, toggle, extend);
+
+	    int newState = determineNewState(row, column);
+	    if (newState == currentState) {
+
+	    } else {
+		switch (newState) {
+		case DEFAULT_STATE:
+		    switchToDefaultMode(this);
+		    break;
+		case UPDATING_STATE:
+		    switchToUpdatingMode(this);
+		case INSERTING_STATE:
+		    switchToInsertingMode(this);
+		case ERROR_UPDATING_STATE:
+		    switchToErrorMode(this);
+		case ERROR_INSERTING_STATE:
+		    switchToErrorMode(this);
+		}
+	    }
+
+	    this.editCellAt(row, column);
+	    ((DefaultCellEditor) (this.getCellEditor(row, column))).getComponent().requestFocus();
+	}
+
+	public void requestStateChange(int newRow, int newColumn, int key, int command) {
+
+	    if (command == INSERT_TABLE_ROW_COMMAND) {
+		// TODO
+		return;
+	    }
+	    if (command == DELETE_TABLE_ROW_COMMAND) {
+		// TODO
+		return;
+	    }
+
+	    boolean rowChange = newRow != currentSelection[0];
+	    int keyClass = getkeyClass(key);
+	    boolean saveSuccessful = false;
+
+	    switch (currentState) {
+	    case DEFAULT_STATE:
+		if (command == DELETE_TABLE_ROW_COMMAND) {
+		    // TODO: delete row + select previous row
+		    return;
+		}
+		if (keyClass != TABLE_NAVIGATION_KEY_CLASS && keyClass != TABLE_DO_NOTHING_KEY_CLASS) {
+		    switchToUpdatingMode(this);
+		    return;
+		}
+	    case UPDATING_STATE:
+		if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
+
+		}
+	    }
+	}
+
+	protected boolean getkeyClass(int key) {
+	    return key == 
 	}
 
     }
@@ -203,7 +301,7 @@ public class SQLiteDataEditorWindow implements Observer {
 
     protected JTabbedPane tpnTables;
 
-    protected JTable[] tblTables;
+    protected SQLiteTable[] tblTables;
 
     protected JMenuItem mntmSave;
 
@@ -387,38 +485,31 @@ public class SQLiteDataEditorWindow implements Observer {
 
 	try {
 
-	    TreeMap<String, TreeMap<String, Object[]>> tables = ((SQLiteInMemoryDatabase) database).getTables();
+	    TreeMap<String, ArrayList<TreeMap<String, Object>>> tables = ((SQLiteInMemoryDatabase) database)
+		    .getTables();
 	    String[] tblNames = tables.keySet().toArray(new String[0]);
 	    int selectedTab = tpnTables.getSelectedIndex();
 	    tpnTables.removeAll();
 
-	    tblTables = new JTable[tblNames.length];
+	    tblTables = new SQLiteTable[tblNames.length];
 
 	    for (int i = 0; i < tblNames.length; i++) {
+
 		String tblName = tblNames[i];
-		TreeMap<String, Object[]> table = tables.get(tblName);
-		int colCount = table.size();
-		Set<String> ksColNames = table.keySet();
+		ArrayList<TreeMap<String, Object>> table = tables.get(tblName);
+		int rowCount = table.size() - 1;
+		int colCount = table.get(0).size();
+		Set<String> ksColNames = table.get(0).keySet();
 		String[] colNames = ksColNames.toArray(new String[ksColNames.size()]);
-		int rowCount = table.get(colNames[0]).length;
 		TreeMap<String, TreeMap<String, String>> importedKeys = ((SQLiteInMemoryDatabase) database)
 			.getImportedKeys(tblName);
 		String[] refTblNames = importedKeys.keySet().toArray(new String[importedKeys.size()]);
 
 		Object[][] data = new Object[rowCount][colCount];
-		for (int j = 0; j < colCount; j++)
-		    for (int k = 0; k < rowCount; k++)
-			data[k][j] = table.get(colNames[j])[k];
-		JTable tbl = new JTable(new DefaultTableModel(data, colNames)) {
-
-		    @Override
-		    public void changeSelection(final int row, final int column, boolean toggle, boolean extend) {
-			super.changeSelection(row, column, toggle, extend);
-			this.editCellAt(row, column);
-			((DefaultCellEditor) (this.getCellEditor(row, column))).getComponent().requestFocus();
-		    }
-
-		};
+		for (int j = 0; j < rowCount; j++)
+		    for (int k = 0; k < colCount; k++)
+			data[j][k] = table.get(j).get(colNames[k]);
+		SQLiteTable tbl = new SQLiteTable(data, colNames);
 		tbl.setRowHeight(25);
 
 		tbl.getColumnModel()
@@ -433,9 +524,14 @@ public class SQLiteDataEditorWindow implements Observer {
 		    for (int j = 0; j < tbl.getColumnCount(); j++) {
 			String colName = tbl.getColumnName(j);
 			if (pks.contains(colName)) {
-			    tcm.getColumn(tcm.getColumnIndex(importedKeys.get(refTblName).get(colName))).setCellEditor(
-				    new DefaultCellEditor(new JComboBox(((SQLiteInMemoryDatabase) database)
-					    .selectColumns(refTblName, new String[] { colName }, true).get(colName))));
+			    ArrayList<TreeMap<String, Object>> colResult = ((SQLiteInMemoryDatabase) database)
+				    .selectColumns(refTblName, null, new String[] { colName }, true);
+			    Vector<Object> col = new Vector<Object>();
+			    for (TreeMap<String, Object> val : colResult) {
+				col.add(val);
+			    }
+			    tcm.getColumn(tcm.getColumnIndex(importedKeys.get(refTblName).get(colName)))
+				    .setCellEditor(new DefaultCellEditor(new JComboBox(col)));
 			} else {
 			    tcm.getColumn(tcm.getColumnIndex(colName)).setCellEditor(new SelectAllCellEditor(tbl));
 			}
