@@ -14,17 +14,15 @@ import static java.awt.event.KeyEvent.VK_UP;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,7 +50,6 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
-import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
@@ -233,55 +230,24 @@ public class SQLiteDataEditorWindow implements Observer {
 	    return true;
 	}
 
-    }
-
-    protected class SelectAllCellEditor extends DefaultCellEditor {
-
-	protected SQLiteTable table;
-
-	protected boolean cellEditingStarted = false;
-
-	protected boolean cellEditingFinished = false;
-
-	public SelectAllCellEditor(SQLiteTable table) {
-	    super(new JTextField());
-	    this.table = table;
-	    JTextField textField = (JTextField) getComponent();
-	    textField.setBorder(new EmptyBorder(0, 0, 0, 0));
-	    textField.setOpaque(false);
-	    textField.addFocusListener(new FocusAdapter() {
-
-		public void focusGained(final FocusEvent e) {
-		    Color[] colors = getCurrentSelectionColors(table);
-		    textField.setSelectionColor(colors[0]);
-		    textField.setSelectedTextColor(colors[1]);
-		    textField.selectAll();
+	@Override
+	public void updateUI() {
+	    super.updateUI();
+	    Color[] colors = getCurrentSelectionColors();
+	    setSelectionBackground(colors[0]);
+	    setSelectionForeground(colors[1]);
+	    DefaultCellEditor editor = ((DefaultCellEditor) getCellEditor());
+	    if (editor != null) {
+		Component editComp = editor.getComponent();
+		if (editComp instanceof JTextField) {
+		    ((JTextField) editComp).setSelectionColor(colors[0]);
+		    ((JTextField) editComp).setSelectedTextColor(colors[1]);
 		}
-	    });
-	    textField.addKeyListener(new KeyListener() {
-
-		@Override
-		public void keyTyped(KeyEvent e) {
-		    handleKeyEvent(e);
+		if (editComp instanceof JComboBox) {
+		    ((JComboBox) editComp).setBackground(colors[0]);
+		    ((JTextField) editComp).setForeground(colors[1]);
 		}
-
-		@Override
-		public void keyPressed(KeyEvent e) {
-		    handleKeyEvent(e);
-		}
-
-		@Override
-		public void keyReleased(KeyEvent e) {
-		    handleKeyEvent(e);
-		}
-
-		protected void handleKeyEvent(KeyEvent e) {
-		    table.currentKey = e.getKeyCode();
-		    requestStateChange(NO_COMMAND, table);
-		}
-
-	    });
-	    this.setClickCountToStart(0);
+	    }
 	}
 
     }
@@ -303,6 +269,8 @@ public class SQLiteDataEditorWindow implements Observer {
     private JButton btnDeleteRow;
 
     private JPanel pnlButtons;
+
+    protected int state = DEFAULT_STATE;
 
     public SQLiteDataEditorWindow(SQLiteDataEditorController controller, SQLiteInMemoryDatabase model)
 	    throws Exception {
@@ -476,8 +444,6 @@ public class SQLiteDataEditorWindow implements Observer {
 			    }
 			    tcm.getColumn(tcm.getColumnIndex(importedKeys.get(refTblName).get(colName)))
 				    .setCellEditor(new DefaultCellEditor(new JComboBox(col)));
-			} else {
-			    tcm.getColumn(tcm.getColumnIndex(colName)).setCellEditor(new SelectAllCellEditor(tbl));
 			}
 		    }
 		}
@@ -625,9 +591,8 @@ public class SQLiteDataEditorWindow implements Observer {
     }
 
     protected void switchToDefaultState(SQLiteTable table) {
-	table.currentState = DEFAULT_STATE;
-	table.setSelectionBackground(DEFAULT_TABLE_ROW_SELECTION_COLOR);
-	table.setSelectionForeground(Color.WHITE);
+	state = DEFAULT_STATE;
+	table.updateUI();
 	btnAddRow.setEnabled(true);
 	btnDeleteRow.setEnabled(true);
 	tpnTables.setEnabled(true);
@@ -635,9 +600,8 @@ public class SQLiteDataEditorWindow implements Observer {
     }
 
     protected void switchToUpdatingState(SQLiteTable table) {
-	table.currentState = UPDATING_STATE;
-	table.setSelectionBackground(TABLE_ROW_UPDATE_COLOR);
-	table.setSelectionForeground(Color.BLACK);
+	state = UPDATING_STATE;
+	table.updateUI();
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
@@ -645,9 +609,8 @@ public class SQLiteDataEditorWindow implements Observer {
     }
 
     protected void switchToInsertingState(SQLiteTable table) {
-	table.currentState = INSERTING_STATE;
-	table.setSelectionBackground(TABLE_ROW_INSERT_COLOR);
-	table.setSelectionForeground(Color.WHITE);
+	state = INSERTING_STATE;
+	table.updateUI();
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
@@ -655,37 +618,44 @@ public class SQLiteDataEditorWindow implements Observer {
     }
 
     protected void switchToErrorUpdatingState(SQLiteTable table, Exception error) {
-	table.currentState = ERROR_UPDATING_STATE;
-	table.setSelectionBackground(TABLE_ROW_ERROR_COLOR);
-	table.setSelectionForeground(Color.WHITE);
+	state = ERROR_UPDATING_STATE;
+	table.updateUI();
 	table.setRowSelectionInterval(table.currentSelection[0], table.currentSelection[0]);
 	table.scrollRectToVisible(new Rectangle(table.getCellRect(table.currentSelection[0], 0, true)));
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
 	menuBar.setEnabled(false);
+	error.printStackTrace();
 	JOptionPane.showMessageDialog(frmSqliteDataEditor, error.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
     }
 
     protected void switchToErrorInsertingState(SQLiteTable table, Exception error) {
-	table.currentState = ERROR_INSERTING_STATE;
-	table.setSelectionBackground(TABLE_ROW_ERROR_COLOR);
-	table.setSelectionForeground(Color.WHITE);
+	state = ERROR_INSERTING_STATE;
+	table.updateUI();
 	table.setRowSelectionInterval(table.currentSelection[0], table.currentSelection[0]);
 	table.scrollRectToVisible(new Rectangle(table.getCellRect(table.currentSelection[0], 0, true)));
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
 	menuBar.setEnabled(false);
-
+	error.printStackTrace();
 	JOptionPane.showMessageDialog(frmSqliteDataEditor, error.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    protected Color[] getCurrentSelectionColors(JTable table) {
-	return isUpdating ? new Color[] { TABLE_ROW_UPDATE_COLOR, Color.BLACK }
-		: isInserting ? new Color[] { TABLE_ROW_INSERT_COLOR, Color.WHITE }
-			: isErrorHandling ? new Color[] { TABLE_ROW_ERROR_COLOR, Color.WHITE }
-				: new Color[] { DEFAULT_TABLE_ROW_SELECTION_COLOR, Color.WHITE };
+    protected Color[] getCurrentSelectionColors() {
+	switch (state) {
+	case DEFAULT_STATE:
+	    return new Color[] { DEFAULT_TABLE_ROW_SELECTION_COLOR, Color.WHITE };
+	case UPDATING_STATE:
+	    return new Color[] { TABLE_ROW_UPDATE_COLOR, Color.BLACK };
+	case INSERTING_STATE:
+	    return new Color[] { TABLE_ROW_INSERT_COLOR, Color.WHITE };
+	case ERROR_UPDATING_STATE:
+	case ERROR_INSERTING_STATE:
+	    return new Color[] { TABLE_ROW_ERROR_COLOR, Color.WHITE };
+	}
+	return null;
     }
 
 }
