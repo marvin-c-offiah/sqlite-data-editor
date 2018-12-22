@@ -141,8 +141,6 @@ public class SQLiteDataEditorWindow implements Observer {
 
     protected class SQLiteTable extends JTable {
 
-	protected int currentState = DEFAULT_STATE;
-
 	protected int[] currentSelection = { -1, -1 };
 
 	protected int currentKey = -1;
@@ -155,6 +153,11 @@ public class SQLiteDataEditorWindow implements Observer {
 	public void changeSelection(final int row, final int column, boolean toggle, boolean extend) {
 	    super.changeSelection(row, column, toggle, extend);
 	    this.editCellAt(row, column);
+	    DefaultCellEditor editor = ((DefaultCellEditor) getCellEditor());
+	    Component editComp = editor.getComponent();
+	    if (editComp instanceof JTextField) {
+		((JTextField) editComp).selectAll();
+	    }
 	    ((DefaultCellEditor) (this.getCellEditor(row, column))).getComponent().requestFocus();
 	    requestStateChange(NO_COMMAND, this);
 	}
@@ -162,9 +165,9 @@ public class SQLiteDataEditorWindow implements Observer {
 	protected int getkeyClass(int key) {
 	    switch (key) {
 	    case VK_ENTER:
-		return currentState == DEFAULT_STATE ? TABLE_NAVIGATION_KEY_CLASS : TABLE_SAVE_EDITS_KEY_CLASS;
+		return state == DEFAULT_STATE ? TABLE_NAVIGATION_KEY_CLASS : TABLE_SAVE_EDITS_KEY_CLASS;
 	    case VK_CANCEL:
-		return currentState == DEFAULT_STATE ? TABLE_EDIT_KEY_CLASS : TABLE_CANCEL_EDITS_KEY_CLASS;
+		return state == DEFAULT_STATE ? TABLE_EDIT_KEY_CLASS : TABLE_CANCEL_EDITS_KEY_CLASS;
 	    case VK_LEFT:
 	    case VK_RIGHT:
 	    case VK_UP:
@@ -242,10 +245,11 @@ public class SQLiteDataEditorWindow implements Observer {
 		if (editComp instanceof JTextField) {
 		    ((JTextField) editComp).setSelectionColor(colors[0]);
 		    ((JTextField) editComp).setSelectedTextColor(colors[1]);
+		    ((JTextField) editComp).selectAll();
 		}
 		if (editComp instanceof JComboBox) {
 		    ((JComboBox) editComp).setBackground(colors[0]);
-		    ((JTextField) editComp).setForeground(colors[1]);
+		    ((JComboBox) editComp).setForeground(colors[1]);
 		}
 	    }
 	}
@@ -440,7 +444,7 @@ public class SQLiteDataEditorWindow implements Observer {
 				    .selectColumns(refTblName, null, new String[] { colName }, true);
 			    Vector<Object> col = new Vector<Object>();
 			    for (TreeMap<String, Object> val : colResult) {
-				col.add(val);
+				col.add(val.get(colName));
 			    }
 			    tcm.getColumn(tcm.getColumnIndex(importedKeys.get(refTblName).get(colName)))
 				    .setCellEditor(new DefaultCellEditor(new JComboBox(col)));
@@ -471,7 +475,7 @@ public class SQLiteDataEditorWindow implements Observer {
 	int keyClass = table.getkeyClass(table.currentKey);
 	Exception[] errRef = new Exception[1];
 
-	switch (table.currentState) {
+	switch (state) {
 	case DEFAULT_STATE:
 	    if (command == DELETE_TABLE_ROW_COMMAND) {
 		if (!tryDeleteRow(table, errRef)) {
@@ -593,6 +597,7 @@ public class SQLiteDataEditorWindow implements Observer {
     protected void switchToDefaultState(SQLiteTable table) {
 	state = DEFAULT_STATE;
 	table.updateUI();
+	table.currentSelection = new int[] { table.getSelectedRow(), table.getSelectedColumn() };
 	btnAddRow.setEnabled(true);
 	btnDeleteRow.setEnabled(true);
 	tpnTables.setEnabled(true);
@@ -602,6 +607,7 @@ public class SQLiteDataEditorWindow implements Observer {
     protected void switchToUpdatingState(SQLiteTable table) {
 	state = UPDATING_STATE;
 	table.updateUI();
+	table.currentSelection = new int[] { table.getSelectedRow(), table.getSelectedColumn() };
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
@@ -611,6 +617,7 @@ public class SQLiteDataEditorWindow implements Observer {
     protected void switchToInsertingState(SQLiteTable table) {
 	state = INSERTING_STATE;
 	table.updateUI();
+	table.currentSelection = new int[] { table.getSelectedRow(), table.getSelectedColumn() };
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
