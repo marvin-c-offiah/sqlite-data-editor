@@ -72,8 +72,6 @@ public class SQLiteDataEditorWindow implements Observer {
 
     public static final int ERROR_INSERTING_STATE = 4;
 
-    public static final int NO_KEY = -1;
-
     public static final int TABLE_DO_NOTHING_KEY_CLASS = -1;
 
     public static final int TABLE_NAVIGATION_KEY_CLASS = 0;
@@ -161,7 +159,7 @@ public class SQLiteDataEditorWindow implements Observer {
 	    super.changeSelection(row, column, toggle, extend);
 	    this.editCellAt(row, column);
 	    ((DefaultCellEditor) (this.getCellEditor(row, column))).getComponent().requestFocus();
-	    requestStateChange(NO_COMMAND, this, row, column, currentKey);
+	    requestStateChange(NO_COMMAND, this);
 	}
 
 	protected int getkeyClass(int key) {
@@ -279,49 +277,11 @@ public class SQLiteDataEditorWindow implements Observer {
 
 		protected void handleKeyEvent(KeyEvent e) {
 		    table.currentKey = e.getKeyCode();
-		    requestStateChange(NO_COMMAND, table, newRow, newColumn, key);
-		    if (cellEditingFinished) {
-			return;
-		    }
-		    if (!cellEditingStarted) {
-			cellEditingStarted = true;
-			return;
-		    }
-		    if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-			stoppedEditingWithoutSaving = false;
-			return;
-		    }
-		    if (!(isUpdating || isInserting)) {
-			if (Arrays.binarySearch(stopEditingWithoutSavingKeys, e.getKeyCode()) < 0) {
-			    stoppedEditingWithoutSaving = false;
-			    cellEditingStarted = true;
-			    cellEditingFinished = false;
-			    switchToUpdatingMode(table);
-			} else {
-			    stoppedEditingWithoutSaving = true;
-			}
-		    }
-
+		    requestStateChange(NO_COMMAND, table);
 		}
 
 	    });
 	    this.setClickCountToStart(0);
-	}
-
-	@Override
-	public boolean stopCellEditing() {
-	    if (!stoppedEditingWithoutSaving) {
-		if (finishRowEditing(table, table.getSelectedRow())) {
-		    cellEditingStarted = false;
-		    cellEditingFinished = true;
-		    getComponent().requestFocus();
-		    return true;
-		} else {
-		    return false;
-		}
-	    } else {
-		return true;
-	    }
 	}
 
     }
@@ -434,7 +394,7 @@ public class SQLiteDataEditorWindow implements Observer {
 		if (selectedIdx > -1) {
 		    SQLiteTable table = tblTables[selectedIdx];
 		    if (table.getSelectedRow() >= 0 && table.getSelectedColumn() >= 0) {
-			requestStateChange(DELETE_TABLE_ROW_COMMAND, table, NO_KEY);
+			requestStateChange(DELETE_TABLE_ROW_COMMAND, table);
 		    }
 
 		}
@@ -454,7 +414,7 @@ public class SQLiteDataEditorWindow implements Observer {
 	    public void actionPerformed(ActionEvent arg0) {
 		int selectedIdx = tpnTables.getSelectedIndex();
 		if (selectedIdx > -1) {
-		    requestStateChange(INSERT_TABLE_ROW_COMMAND, tblTables[selectedIdx], NO_KEY);
+		    requestStateChange(INSERT_TABLE_ROW_COMMAND, tblTables[selectedIdx]);
 		}
 
 	    }
@@ -527,7 +487,6 @@ public class SQLiteDataEditorWindow implements Observer {
 	    }
 
 	    tpnTables.setSelectedIndex(selectedTab > -1 ? selectedTab : 0);
-	    switchToDefaultMode(tblTables[selectedTab > -1 ? selectedTab : 0]);
 
 	} catch (Exception e) {
 	    e.printStackTrace();
@@ -540,10 +499,10 @@ public class SQLiteDataEditorWindow implements Observer {
 	mntmSave.setEnabled(saveEnabled);
     }
 
-    protected void requestStateChange(int command, SQLiteTable table, int key) {
+    protected void requestStateChange(int command, SQLiteTable table) {
 
 	boolean rowChanged = table.getSelectedRow() != table.currentSelection[0];
-	int keyClass = table.getkeyClass(key);
+	int keyClass = table.getkeyClass(table.currentKey);
 	Exception[] errRef = new Exception[1];
 
 	switch (table.currentState) {
@@ -601,32 +560,55 @@ public class SQLiteDataEditorWindow implements Observer {
 		return;
 	    }
 	    if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
+		table.tryRestoreOriginalRow(errRef);
 		switchToDefaultState(table);
 		return;
 	    }
+	    if (rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS) {
+		if (table.trySaveUpdate(errRef)) {
+		    switchToDefaultState(table);
+		} else {
+		    errRef[0].printStackTrace();
+		    JOptionPane.showMessageDialog(frmSqliteDataEditor, errRef[0].getMessage(), "Error",
+			    JOptionPane.ERROR_MESSAGE);
+		}
+		return;
+	    }
 	case ERROR_INSERTING_STATE:
-
+	    if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
+		return;
+	    }
+	    if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
+		table.tryRestoreOriginalRow(errRef);
+		switchToDefaultState(table);
+		return;
+	    }
+	    if (rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS) {
+		if (table.trySaveInsert(errRef)) {
+		    switchToDefaultState(table);
+		} else {
+		    errRef[0].printStackTrace();
+		    JOptionPane.showMessageDialog(frmSqliteDataEditor, errRef[0].getMessage(), "Error",
+			    JOptionPane.ERROR_MESSAGE);
+		}
+		return;
+	    }
 	}
 
     }
 
-    protected void tryInsertRow(SQLiteTable table, Exception[] errorReference) {
+    protected boolean tryInsertRow(SQLiteTable table, Exception[] errorReference) {
 	try {
-	    if (selectedIdx > -1) {
-		isInserting = true;
-		((DefaultTableModel) table.getModel()).addRow(new String[table.getColumnCount() + 1]);
-		int row = table.getRowCount() - 1;
-		table.setRowSelectionInterval(row, row);
-		tblTables[selectedIdx]
-			.scrollRectToVisible(new Rectangle(tblTables[selectedIdx].getCellRect(row, 0, true)));
-	    }
+	    ((DefaultTableModel) table.getModel()).addRow(new String[table.getColumnCount() + 1]);
+	    int row = table.getRowCount() - 1;
+	    table.setRowSelectionInterval(row, row);
+	    table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
 	} catch (Exception e) {
-	    tblTables[selectedIdx].setSelectionBackground(TABLE_ROW_ERROR_COLOR);
-	    isErrorHandling = true;
+	    table.setSelectionBackground(TABLE_ROW_ERROR_COLOR);
 	    e.printStackTrace();
-
+	    return false;
 	}
-	isHandlingValueChange = false;
+	return true;
     }
 
     protected boolean tryDeleteRow(SQLiteTable table, Exception[] errorReference) {
