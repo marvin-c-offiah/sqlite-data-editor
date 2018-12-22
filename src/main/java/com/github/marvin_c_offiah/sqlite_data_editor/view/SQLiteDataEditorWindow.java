@@ -1,5 +1,17 @@
 package com.github.marvin_c_offiah.sqlite_data_editor.view;
 
+import static java.awt.event.KeyEvent.VK_CANCEL;
+import static java.awt.event.KeyEvent.VK_DOWN;
+import static java.awt.event.KeyEvent.VK_ENTER;
+import static java.awt.event.KeyEvent.VK_KP_DOWN;
+import static java.awt.event.KeyEvent.VK_KP_LEFT;
+import static java.awt.event.KeyEvent.VK_KP_RIGHT;
+import static java.awt.event.KeyEvent.VK_KP_UP;
+import static java.awt.event.KeyEvent.VK_LEFT;
+import static java.awt.event.KeyEvent.VK_RIGHT;
+import static java.awt.event.KeyEvent.VK_TAB;
+import static java.awt.event.KeyEvent.VK_UP;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -68,6 +80,8 @@ public class SQLiteDataEditorWindow implements Observer {
 
     public static final int TABLE_CANCEL_EDITS_KEY_CLASS = 2;
 
+    public static final int TABLE_EDIT_KEY_CLASS = 3;
+
     public static final int TABLE_DO_NOTHING_KEY_CLASS = 3;
 
     public static final int INSERT_TABLE_ROW_COMMAND = 0;
@@ -134,6 +148,8 @@ public class SQLiteDataEditorWindow implements Observer {
 
 	protected int[] currentSelection = { -1, -1 };
 
+	protected int currentKey = -1;
+
 	public SQLiteTable(Object[][] data, String[] colNames) {
 	    super(new DefaultTableModel(data, colNames));
 	}
@@ -141,64 +157,84 @@ public class SQLiteDataEditorWindow implements Observer {
 	@Override
 	public void changeSelection(final int row, final int column, boolean toggle, boolean extend) {
 	    super.changeSelection(row, column, toggle, extend);
-
-	    int newState = determineNewState(row, column);
-	    if (newState == currentState) {
-
-	    } else {
-		switch (newState) {
-		case DEFAULT_STATE:
-		    switchToDefaultMode(this);
-		    break;
-		case UPDATING_STATE:
-		    switchToUpdatingMode(this);
-		case INSERTING_STATE:
-		    switchToInsertingMode(this);
-		case ERROR_UPDATING_STATE:
-		    switchToErrorMode(this);
-		case ERROR_INSERTING_STATE:
-		    switchToErrorMode(this);
-		}
-	    }
-
 	    this.editCellAt(row, column);
 	    ((DefaultCellEditor) (this.getCellEditor(row, column))).getComponent().requestFocus();
+	    requestStateChange(NO_COMMAND, this, row, column, currentKey);
 	}
 
-	public void requestStateChange(int newRow, int newColumn, int key, int command) {
-
-	    if (command == INSERT_TABLE_ROW_COMMAND) {
-		// TODO
-		return;
-	    }
-	    if (command == DELETE_TABLE_ROW_COMMAND) {
-		// TODO
-		return;
-	    }
-
-	    boolean rowChange = newRow != currentSelection[0];
-	    int keyClass = getkeyClass(key);
-	    boolean saveSuccessful = false;
-
-	    switch (currentState) {
-	    case DEFAULT_STATE:
-		if (command == DELETE_TABLE_ROW_COMMAND) {
-		    // TODO: delete row + select previous row
-		    return;
-		}
-		if (keyClass != TABLE_NAVIGATION_KEY_CLASS && keyClass != TABLE_DO_NOTHING_KEY_CLASS) {
-		    switchToUpdatingMode(this);
-		    return;
-		}
-	    case UPDATING_STATE:
-		if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
-
-		}
+	protected int getkeyClass(int key) {
+	    switch (key) {
+	    case VK_ENTER:
+		return currentState == DEFAULT_STATE ? TABLE_NAVIGATION_KEY_CLASS : TABLE_SAVE_EDITS_KEY_CLASS;
+	    case VK_CANCEL:
+		return currentState == DEFAULT_STATE ? TABLE_EDIT_KEY_CLASS : TABLE_CANCEL_EDITS_KEY_CLASS;
+	    case VK_LEFT:
+	    case VK_RIGHT:
+	    case VK_UP:
+	    case VK_DOWN:
+	    case VK_KP_LEFT:
+	    case VK_KP_RIGHT:
+	    case VK_KP_UP:
+	    case VK_KP_DOWN:
+	    case VK_TAB:
+		return TABLE_NAVIGATION_KEY_CLASS;
+	    default:
+		return TABLE_EDIT_KEY_CLASS;
 	    }
 	}
 
-	protected boolean getkeyClass(int key) {
-	    return key == 
+	protected boolean trySaveUpdate() {
+	    try {
+		TreeMap<String, Object> line = new TreeMap<String, Object>();
+		List<String> primKeyElems = Arrays.asList(controller.getPrimaryKey(getName()));
+		for (int i = 0; i < getColumnCount(); i++) {
+		    String colName = getColumnName(i);
+		    if (!primKeyElems.contains(colName))
+			line.put(colName, getValueAt(row, i));
+		}
+		int rowId = (int) getModel().getValueAt(row, getModel().getColumnCount() - 1);
+		TreeMap<String, Object> pk = new TreeMap<String, Object>();
+		pk.put("_rowid_", rowId);
+		controller.updateInTable(getName(), pk, line);
+	    } catch (Exception e) {
+
+		e.printStackTrace();
+		JOptionPane.showMessageDialog(frmSqliteDataEditor, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+		return false;
+	    }
+	    return true;
+	}
+
+	protected boolean trySaveInsert() {
+	    try {
+		if (isInserting) {
+		    TreeMap<String, Object> vals = new TreeMap<String, Object>();
+		    for (int i = 0; i < getColumnCount(); i++) {
+			vals.put(getColumnName(i), getValueAt(row, i));
+		    }
+		    controller.insertIntoTable(getName(), vals);
+		} else if (isUpdating) {
+		    TreeMap<String, Object> line = new TreeMap<String, Object>();
+		    List<String> primKeyElems = Arrays.asList(controller.getPrimaryKey(getName()));
+		    for (int i = 0; i < getColumnCount(); i++) {
+			String colName = getColumnName(i);
+			if (!primKeyElems.contains(colName))
+			    line.put(colName, getValueAt(row, i));
+		    }
+		    int rowId = (int) getModel().getValueAt(row, getModel().getColumnCount() - 1);
+		    TreeMap<String, Object> pk = new TreeMap<String, Object>();
+		    pk.put("_rowid_", rowId);
+		    controller.updateInTable(getName(), pk, line);
+		}
+	    } catch (Exception e) {
+		switchToErrorMode(table);
+		setRowSelectionInterval(row, row);
+		scrollRectToVisible(new Rectangle(getCellRect(row, 0, true)));
+		e.printStackTrace();
+		JOptionPane.showMessageDialog(frmSqliteDataEditor, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+		return false;
+	    }
+	    return true;
 	}
 
     }
@@ -556,86 +592,102 @@ public class SQLiteDataEditorWindow implements Observer {
 	mntmSave.setEnabled(saveEnabled);
     }
 
-    protected boolean finishRowEditing(JTable table, int row) {
-	try {
-	    if (isInserting) {
-		table.setSelectionBackground(DEFAULT_TABLE_ROW_SELECTION_COLOR);
-		TreeMap<String, Object> vals = new TreeMap<String, Object>();
-		for (int i = 0; i < table.getColumnCount(); i++) {
-		    vals.put(table.getColumnName(i), table.getValueAt(row, i));
-		}
-		controller.insertIntoTable(table.getName(), vals);
-		switchToDefaultMode(table);
-	    } else if (isUpdating) {
-		table.setSelectionBackground(DEFAULT_TABLE_ROW_SELECTION_COLOR);
-		TreeMap<String, Object> line = new TreeMap<String, Object>();
-		List<String> primKeyElems = Arrays.asList(controller.getPrimaryKey(table.getName()));
-		for (int i = 0; i < table.getColumnCount(); i++) {
-		    String colName = table.getColumnName(i);
-		    if (!primKeyElems.contains(colName))
-			line.put(colName, table.getValueAt(row, i));
-		}
-		int rowId = (int) table.getModel().getValueAt(row, table.getModel().getColumnCount() - 1);
-		TreeMap<String, Object> pk = new TreeMap<String, Object>();
-		pk.put("_rowid_", rowId);
-		controller.updateInTable(table.getName(), pk, line);
-		switchToDefaultMode(table);
-	    }
-	} catch (Exception e) {
-	    switchToErrorMode(table);
-	    table.setRowSelectionInterval(row, row);
-	    table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
-	    e.printStackTrace();
-	    JOptionPane.showMessageDialog(frmSqliteDataEditor, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-	    return false;
+    protected void requestStateChange(int command, SQLiteTable table, int newRow, int newColumn, int key) {
+
+	if (command == INSERT_TABLE_ROW_COMMAND) {
+	    switchToInsertingState(table);
+	    return;
 	}
-	return true;
+	if (command == DELETE_TABLE_ROW_COMMAND) {
+	    deleteRow(table);
+	    return;
+	}
+
+	boolean rowChanged = newRow != table.currentSelection[0];
+	int keyClass = table.getkeyClass(key);
+	boolean saveSuccessful = false;
+
+	switch (table.currentState) {
+	case DEFAULT_STATE:
+	    if (command == DELETE_TABLE_ROW_COMMAND) {
+		// TODO: delete row + select previous row
+		return;
+	    }
+	    if (keyClass != TABLE_NAVIGATION_KEY_CLASS && keyClass != TABLE_DO_NOTHING_KEY_CLASS) {
+		switchToUpdatingMode(table);
+		return;
+	    }
+	case UPDATING_STATE:
+	    if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
+		return;
+	    }
+	    if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS
+		    || ((rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS) && tryApplyUpdate())) {
+		switchToDefaultMode(table);
+		return;
+	    }
+	    if ((rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS) && !trySaveChanges()) {
+		switchToErrorMode(table);
+		return;
+	    }
+	case ERROR_UPDATING_STATE:
+
+	}
+
     }
 
-    protected void switchToDefaultMode(JTable table) {
+    protected void switchToDefaultState(SQLiteTable table) {
 	table.setSelectionBackground(DEFAULT_TABLE_ROW_SELECTION_COLOR);
 	table.setSelectionForeground(Color.WHITE);
 	btnAddRow.setEnabled(true);
 	btnDeleteRow.setEnabled(true);
 	tpnTables.setEnabled(true);
 	menuBar.setEnabled(true);
-	isInserting = false;
-	isUpdating = false;
-	isErrorHandling = false;
+	table.currentState = DEFAULT_STATE;
     }
 
-    protected void switchToUpdatingMode(JTable table) {
+    protected void switchToUpdatingState(SQLiteTable table) {
 	table.setSelectionBackground(TABLE_ROW_UPDATE_COLOR);
 	table.setSelectionForeground(Color.BLACK);
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
 	menuBar.setEnabled(false);
-	isUpdating = true;
-	isInserting = false;
-	isErrorHandling = false;
+	table.currentState = UPDATING_STATE;
     }
 
-    protected void switchToInsertingMode(JTable table) {
+    protected void switchToInsertingState(SQLiteTable table) {
 	table.setSelectionBackground(TABLE_ROW_INSERT_COLOR);
 	table.setSelectionForeground(Color.WHITE);
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
 	menuBar.setEnabled(false);
-	isUpdating = false;
-	isInserting = true;
-	isErrorHandling = false;
+	table.currentState = INSERTING_STATE;
     }
 
-    protected void switchToErrorMode(JTable table) {
+    protected void switchToErrorUpdatingState(SQLiteTable table, int row) {
 	table.setSelectionBackground(TABLE_ROW_ERROR_COLOR);
 	table.setSelectionForeground(Color.WHITE);
+	table.setRowSelectionInterval(row, row);
+	table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
 	btnAddRow.setEnabled(false);
 	btnDeleteRow.setEnabled(false);
 	tpnTables.setEnabled(false);
 	menuBar.setEnabled(false);
-	isErrorHandling = true;
+	table.currentState = ERROR_UPDATING_STATE;
+    }
+
+    protected void switchToErrorInsertingState(SQLiteTable table, int row) {
+	table.setSelectionBackground(TABLE_ROW_ERROR_COLOR);
+	table.setSelectionForeground(Color.WHITE);
+	table.setRowSelectionInterval(row, row);
+	table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
+	btnAddRow.setEnabled(false);
+	btnDeleteRow.setEnabled(false);
+	tpnTables.setEnabled(false);
+	menuBar.setEnabled(false);
+	table.currentState = ERROR_INSERTING_STATE;
     }
 
     protected Color[] getCurrentSelectionColors(JTable table) {
