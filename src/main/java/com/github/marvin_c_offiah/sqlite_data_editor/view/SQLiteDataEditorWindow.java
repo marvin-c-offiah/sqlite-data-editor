@@ -553,8 +553,7 @@ public class SQLiteDataEditorWindow implements Observer {
 					}
 					return;
 				}
-				if (keyClass != TABLE_NAVIGATION_KEY_CLASS
-						&& keyClass != TABLE_DO_NOTHING_KEY_CLASS) {
+				if (keyClass == TABLE_EDIT_KEY_CLASS) {
 					switchToUpdatingState(table);
 					return;
 				}
@@ -562,6 +561,7 @@ public class SQLiteDataEditorWindow implements Observer {
 					switchToInsertingState(table);
 					return;
 				}
+				return;
 			case UPDATING_STATE:
 				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
 					return;
@@ -578,6 +578,7 @@ public class SQLiteDataEditorWindow implements Observer {
 					}
 					return;
 				}
+				return;
 			case INSERTING_STATE:
 				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
 					return;
@@ -594,6 +595,7 @@ public class SQLiteDataEditorWindow implements Observer {
 					}
 					return;
 				}
+				return;
 			case ERROR_UPDATING_STATE:
 				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
 					return;
@@ -614,6 +616,7 @@ public class SQLiteDataEditorWindow implements Observer {
 					}
 					return;
 				}
+				return;
 			case ERROR_INSERTING_STATE:
 				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
 					return;
@@ -634,6 +637,7 @@ public class SQLiteDataEditorWindow implements Observer {
 					}
 					return;
 				}
+				return;
 		}
 
 	}
@@ -672,6 +676,7 @@ public class SQLiteDataEditorWindow implements Observer {
 
 	protected void switchToDefaultState(SQLiteTable table) {
 		state = DEFAULT_STATE;
+		table.currentKey = NO_KEY;
 		table.updateUI();
 		table.currentSelection = new int[] { table.getSelectedRow(),
 				table.getSelectedColumn() };
@@ -683,6 +688,7 @@ public class SQLiteDataEditorWindow implements Observer {
 
 	protected void switchToUpdatingState(SQLiteTable table) {
 		state = UPDATING_STATE;
+		table.currentKey = NO_KEY;
 		table.updateUI();
 		table.currentSelection = new int[] { table.getSelectedRow(),
 				table.getSelectedColumn() };
@@ -694,6 +700,7 @@ public class SQLiteDataEditorWindow implements Observer {
 
 	protected void switchToInsertingState(SQLiteTable table) {
 		state = INSERTING_STATE;
+		table.currentKey = NO_KEY;
 		table.updateUI();
 		table.currentSelection = new int[] { table.getSelectedRow(),
 				table.getSelectedColumn() };
@@ -706,6 +713,7 @@ public class SQLiteDataEditorWindow implements Observer {
 	protected void switchToErrorUpdatingState(SQLiteTable table,
 			Exception error) {
 		state = ERROR_UPDATING_STATE;
+		table.currentKey = NO_KEY;
 		table.updateUI();
 		table.setRowSelectionInterval(table.currentSelection[0],
 				table.currentSelection[0]);
@@ -723,6 +731,7 @@ public class SQLiteDataEditorWindow implements Observer {
 	protected void switchToErrorInsertingState(SQLiteTable table,
 			Exception error) {
 		state = ERROR_INSERTING_STATE;
+		table.currentKey = NO_KEY;
 		table.updateUI();
 		table.setRowSelectionInterval(table.currentSelection[0],
 				table.currentSelection[0]);
