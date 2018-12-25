@@ -193,10 +193,14 @@ public class SQLiteDataEditorWindow implements Observer {
 							: TABLE_CANCEL_EDITS_KEY_CLASS;
 				case VK_LEFT:
 				case VK_RIGHT:
-				case VK_UP:
-				case VK_DOWN:
+					return state == DEFAULT_STATE ? TABLE_NAVIGATION_KEY_CLASS
+							: TABLE_EDIT_KEY_CLASS;
 				case VK_KP_LEFT:
 				case VK_KP_RIGHT:
+					return state == DEFAULT_STATE ? TABLE_NAVIGATION_KEY_CLASS
+							: TABLE_EDIT_KEY_CLASS;
+				case VK_UP:
+				case VK_DOWN:
 				case VK_KP_UP:
 				case VK_KP_DOWN:
 				case VK_TAB:
