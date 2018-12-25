@@ -40,7 +40,6 @@ import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
@@ -170,11 +169,12 @@ public class SQLiteDataEditorWindow implements Observer {
 		public void changeSelection(final int row, final int column,
 				boolean toggle, boolean extend) {
 			super.changeSelection(row, column, toggle, extend);
-			this.editCellAt(row, column);
-			DefaultCellEditor editor = ((DefaultCellEditor) getCellEditor());
+
+			DefaultCellEditor editor = ((DefaultCellEditor) getCellEditor(row,
+					column));
 			Component editComp = editor.getComponent();
-			if (editComp instanceof JTextField) {
-				((JTextField) editComp).selectAll();
+			if (!(editComp instanceof JComboBox)) {
+				this.editCellAt(row, column);
 			}
 			((DefaultCellEditor) (this.getCellEditor(row, column)))
 					.getComponent().requestFocus();
@@ -189,7 +189,7 @@ public class SQLiteDataEditorWindow implements Observer {
 					return state == DEFAULT_STATE ? TABLE_NAVIGATION_KEY_CLASS
 							: TABLE_SAVE_EDITS_KEY_CLASS;
 				case VK_CANCEL:
-					return state == DEFAULT_STATE ? TABLE_EDIT_KEY_CLASS
+					return state == DEFAULT_STATE ? TABLE_DO_NOTHING_KEY_CLASS
 							: TABLE_CANCEL_EDITS_KEY_CLASS;
 				case VK_LEFT:
 				case VK_RIGHT:
@@ -263,23 +263,28 @@ public class SQLiteDataEditorWindow implements Observer {
 			return true;
 		}
 
-		@Override
-		public void updateUI() {
-			super.updateUI();
+		public void updateGui() {
 			Color[] colors = getCurrentSelectionColors();
 			setSelectionBackground(colors[0]);
 			setSelectionForeground(colors[1]);
-			DefaultCellEditor editor = ((DefaultCellEditor) getCellEditor());
-			if (editor != null) {
-				Component editComp = editor.getComponent();
-				if (editComp instanceof JTextField) {
-					((JTextField) editComp).setSelectionColor(colors[0]);
-					((JTextField) editComp).setSelectedTextColor(colors[1]);
-					((JTextField) editComp).selectAll();
-				}
-				if (editComp instanceof JComboBox) {
-					((JComboBox) editComp).setBackground(colors[0]);
-					((JComboBox) editComp).setForeground(colors[1]);
+			for (int i = 0; i < getColumnModel().getColumnCount(); i++) {
+				DefaultCellEditor editor = ((DefaultCellEditor) getCellEditor(
+						currentSelection[0], i));
+				if (editor != null) {
+					Component editComp = editor.getComponent();
+					if (editComp instanceof JCheckBox) {
+						((JCheckBox) editComp).setBackground(colors[0]);
+						((JCheckBox) editComp).setForeground(colors[1]);
+					}
+					if (editComp instanceof JTextField) {
+						((JTextField) editComp).setSelectionColor(colors[0]);
+						((JTextField) editComp).setSelectedTextColor(colors[1]);
+						((JTextField) editComp).selectAll();
+					}
+					if (editComp instanceof JComboBox) {
+						((JComboBox) editComp).setBackground(colors[0]);
+						((JComboBox) editComp).setForeground(colors[1]);
+					}
 				}
 			}
 		}
@@ -290,48 +295,56 @@ public class SQLiteDataEditorWindow implements Observer {
 
 		protected SQLiteTable table;
 
-		public SQLiteCellEditor(SQLiteTable table, JComponent component) {
-			super((component instanceof JCheckBox ? (JCheckBox) component
-					: component instanceof JTextField ? (JTextField) component
-							: (JComboBox) component));
+		public SQLiteCellEditor(SQLiteTable table, JCheckBox component) {
+			super(component);
 			this.table = table;
+		}
 
-			if (component instanceof JTextField) {
-				((JTextField) component).addKeyListener(new KeyListener() {
+		public SQLiteCellEditor(SQLiteTable table, JTextField component) {
+			super(component);
+			this.table = table;
+			component.addKeyListener(new KeyListener() {
 
-					@Override
-					public void keyPressed(KeyEvent e) {
-						handleKeyEvent(e);
-					}
+				@Override
+				public void keyPressed(KeyEvent e) {
+					handleKeyEvent(e);
+				}
 
-					@Override
-					public void keyReleased(KeyEvent e) {
-						handleKeyEvent(e);
-					}
+				@Override
+				public void keyReleased(KeyEvent e) {
+					handleKeyEvent(e);
+				}
 
-					@Override
-					public void keyTyped(KeyEvent e) {
-						handleKeyEvent(e);
-					}
+				@Override
+				public void keyTyped(KeyEvent e) {
+					handleKeyEvent(e);
+				}
 
-					protected void handleKeyEvent(KeyEvent e) {
-						table.currentKey = e.getKeyCode();
-						requestStateChange(NO_COMMAND, table);
-					}
+				protected void handleKeyEvent(KeyEvent e) {
+					table.currentKey = e.getKeyCode();
+					requestStateChange(NO_COMMAND, table);
+				}
 
-				});
-			} else if (component instanceof JComboBox) {
-				((JComboBox) component).addItemListener(new ItemListener() {
+			});
+		}
 
-					@Override
-					public void itemStateChanged(ItemEvent arg0) {
+		public SQLiteCellEditor(SQLiteTable table, JComboBox component) {
+			super(component);
+			this.table = table;
+			component.addItemListener(new ItemListener() {
+
+				@Override
+				public void itemStateChanged(ItemEvent event) {
+					if (event.getStateChange() == ItemEvent.SELECTED
+							|| event.getStateChange() == ItemEvent.DESELECTED) {
 						table.currentKey = KeyEvent.VK_A;
 						requestStateChange(NO_COMMAND, table);
 					}
+				}
 
-				});
-			}
+			});
 		}
+
 	}
 
 	protected SQLiteDataEditorController controller;
@@ -539,15 +552,13 @@ public class SQLiteDataEditorWindow implements Observer {
 							}
 							tcm.getColumn(tcm.getColumnIndex(
 									importedKeys.get(refTblName).get(colName)))
-									.setCellEditor(new SQLiteCellEditor(tbl, new JComboBox(col)));
+									.setCellEditor(new SQLiteCellEditor(tbl,
+											new JComboBox(col)));
 						} else {
-							tcm.getColumn(j).setCellEditor(new DefaultCellEditor(
-									new JTextField() {
-										public void 
-									}));
-							
+							tcm.getColumn(j).setCellEditor(new SQLiteCellEditor(
+									tbl, new JTextField()));
 						}
-					} 
+					}
 				}
 
 				tpnTables.addTab(tblName, new JScrollPane(tbl));
@@ -585,6 +596,7 @@ public class SQLiteDataEditorWindow implements Observer {
 								errRef[0].getMessage(), "Error",
 								JOptionPane.ERROR_MESSAGE);
 					}
+					remainInState(table, true);
 					return;
 				}
 				if (keyClass == TABLE_EDIT_KEY_CLASS) {
@@ -595,9 +607,11 @@ public class SQLiteDataEditorWindow implements Observer {
 					switchToInsertingState(table);
 					return;
 				}
+				remainInState(table, true);
 				return;
 			case UPDATING_STATE:
-				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
+				if (keyClass == TABLE_EDIT_KEY_CLASS) {
+					table.currentKey = NO_KEY;
 					return;
 				}
 				if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
@@ -612,9 +626,11 @@ public class SQLiteDataEditorWindow implements Observer {
 					}
 					return;
 				}
+				remainInState(table, true);
 				return;
 			case INSERTING_STATE:
-				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
+				if (keyClass == TABLE_EDIT_KEY_CLASS) {
+					table.currentKey = NO_KEY;
 					return;
 				}
 				if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
@@ -629,9 +645,11 @@ public class SQLiteDataEditorWindow implements Observer {
 					}
 					return;
 				}
+				remainInState(table, true);
 				return;
 			case ERROR_UPDATING_STATE:
-				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
+				if (keyClass == TABLE_EDIT_KEY_CLASS) {
+					table.currentKey = NO_KEY;
 					return;
 				}
 				if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
@@ -647,12 +665,15 @@ public class SQLiteDataEditorWindow implements Observer {
 						JOptionPane.showMessageDialog(frmSqliteDataEditor,
 								errRef[0].getMessage(), "Error",
 								JOptionPane.ERROR_MESSAGE);
+						remainInState(table, false);
 					}
 					return;
 				}
+				remainInState(table, true);
 				return;
 			case ERROR_INSERTING_STATE:
-				if (!(rowChanged || keyClass == TABLE_SAVE_EDITS_KEY_CLASS)) {
+				if (keyClass == TABLE_EDIT_KEY_CLASS) {
+					table.currentKey = NO_KEY;
 					return;
 				}
 				if (keyClass == TABLE_CANCEL_EDITS_KEY_CLASS) {
@@ -668,9 +689,11 @@ public class SQLiteDataEditorWindow implements Observer {
 						JOptionPane.showMessageDialog(frmSqliteDataEditor,
 								errRef[0].getMessage(), "Error",
 								JOptionPane.ERROR_MESSAGE);
+						remainInState(table, false);
 					}
 					return;
 				}
+				remainInState(table, true);
 				return;
 		}
 
@@ -708,12 +731,21 @@ public class SQLiteDataEditorWindow implements Observer {
 		return true;
 	}
 
+	protected void remainInState(SQLiteTable table, boolean changeSelection) {
+		table.currentKey = NO_KEY;
+		if (changeSelection) {
+			table.currentSelection = new int[] { table.getSelectedRow(),
+					table.getSelectedColumn() };
+		}
+		table.updateGui();
+	}
+
 	protected void switchToDefaultState(SQLiteTable table) {
 		state = DEFAULT_STATE;
 		table.currentKey = NO_KEY;
-		table.updateUI();
 		table.currentSelection = new int[] { table.getSelectedRow(),
 				table.getSelectedColumn() };
+		table.updateGui();
 		btnAddRow.setEnabled(true);
 		btnDeleteRow.setEnabled(true);
 		tpnTables.setEnabled(true);
@@ -723,9 +755,9 @@ public class SQLiteDataEditorWindow implements Observer {
 	protected void switchToUpdatingState(SQLiteTable table) {
 		state = UPDATING_STATE;
 		table.currentKey = NO_KEY;
-		table.updateUI();
 		table.currentSelection = new int[] { table.getSelectedRow(),
 				table.getSelectedColumn() };
+		table.updateGui();
 		btnAddRow.setEnabled(false);
 		btnDeleteRow.setEnabled(false);
 		tpnTables.setEnabled(false);
@@ -735,9 +767,9 @@ public class SQLiteDataEditorWindow implements Observer {
 	protected void switchToInsertingState(SQLiteTable table) {
 		state = INSERTING_STATE;
 		table.currentKey = NO_KEY;
-		table.updateUI();
 		table.currentSelection = new int[] { table.getSelectedRow(),
 				table.getSelectedColumn() };
+		table.updateGui();
 		btnAddRow.setEnabled(false);
 		btnDeleteRow.setEnabled(false);
 		tpnTables.setEnabled(false);
@@ -748,11 +780,11 @@ public class SQLiteDataEditorWindow implements Observer {
 			Exception error) {
 		state = ERROR_UPDATING_STATE;
 		table.currentKey = NO_KEY;
-		table.updateUI();
 		table.setRowSelectionInterval(table.currentSelection[0],
 				table.currentSelection[0]);
 		table.scrollRectToVisible(new Rectangle(
 				table.getCellRect(table.currentSelection[0], 0, true)));
+		table.updateGui();
 		btnAddRow.setEnabled(false);
 		btnDeleteRow.setEnabled(false);
 		tpnTables.setEnabled(false);
@@ -766,11 +798,11 @@ public class SQLiteDataEditorWindow implements Observer {
 			Exception error) {
 		state = ERROR_INSERTING_STATE;
 		table.currentKey = NO_KEY;
-		table.updateUI();
 		table.setRowSelectionInterval(table.currentSelection[0],
 				table.currentSelection[0]);
 		table.scrollRectToVisible(new Rectangle(
 				table.getCellRect(table.currentSelection[0], 0, true)));
+		table.updateGui();
 		btnAddRow.setEnabled(false);
 		btnDeleteRow.setEnabled(false);
 		tpnTables.setEnabled(false);
